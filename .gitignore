@@ -1,0 +1,7 @@
+# Backend
+backend/node_modules
+backend/dist
+backend/dist-ssr
+backend/.env
+backend/.env.*
+backend/*.local
