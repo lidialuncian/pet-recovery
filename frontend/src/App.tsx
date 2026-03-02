@@ -7,7 +7,8 @@ import OwnerPetsPage from './pages/owner/OwnerPetsPage';
 import OwnerPlansPage from './pages/owner/OwnerPlansPage';
 import OwnerAddPetPage from './pages/owner/OwnerAddPetPage';
 import VetHomePage from './pages/vet/VetHomePage';
-import AdminHomePage from './pages/admin/AdminHomePage';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminHome from './components/home/AdminHome';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,7 +29,9 @@ function App() {
           <Route path="add-pet" element={<OwnerAddPetPage />} />
         </Route>
         <Route path="/home/vet" element={<ProtectedRoute><VetHomePage /></ProtectedRoute>} />
-        <Route path="/home/admin" element={<ProtectedRoute><AdminHomePage /></ProtectedRoute>} />
+        <Route path="/home/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+          <Route index element={<AdminHome />} />
+        </Route>
         <Route
           path="/profile"
           element={

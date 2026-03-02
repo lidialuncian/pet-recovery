@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { userRouter, petRouter } from "./routes";
+import { userRouter, petRouter, clinicRouter } from "./routes";
 
 
 dotenv.config();
@@ -14,6 +14,7 @@ const PORT = process.env.PORT;
 
 app.use("/users", userRouter);
 app.use("/pets", petRouter);
+app.use("/clinics", clinicRouter);
 
 app.listen(PORT, () => {
   console.log(`App is running on http://localhost:${PORT}`);

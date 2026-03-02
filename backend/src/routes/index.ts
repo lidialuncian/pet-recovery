@@ -1,4 +1,5 @@
 import userRouter from "./user.route";
 import petRouter from "./pet.route";
+import clinicRouter from "./clinic.route";
 
-export { userRouter, petRouter };
+export { userRouter, petRouter, clinicRouter };
