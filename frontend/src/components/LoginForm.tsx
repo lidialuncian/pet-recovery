@@ -70,13 +70,15 @@ function LoginForm({ onSubmit, isSubmitting = false, error }: LoginFormProps) {
                         value={credentials.email}
                         onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                         disabled={isSubmitting}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <EmailOutlined sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <EmailOutlined sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
                     <TextField
@@ -86,25 +88,27 @@ function LoginForm({ onSubmit, isSubmitting = false, error }: LoginFormProps) {
                         value={credentials.password}
                         onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                         disabled={isSubmitting}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        aria-label="toggle password visibility"
-                                        onClick={() => setShowPassword((p) => !p)}
-                                        edge="end"
-                                        size="small"
-                                    >
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={() => setShowPassword((p) => !p)}
+                                            edge="end"
+                                            size="small"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
 

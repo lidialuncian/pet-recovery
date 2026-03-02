@@ -78,13 +78,15 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                         type="text"
                         value={user.first_name}
                         onChange={(e) => setUser({ ...user, first_name: e.target.value })}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <PersonOutline sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonOutline sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
                     <TextField
@@ -93,13 +95,15 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                         type="text"
                         value={user.last_name}
                         onChange={(e) => setUser({ ...user, last_name: e.target.value })}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <PersonOutline sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <PersonOutline sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
                     <TextField
@@ -108,13 +112,15 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                         type="email"
                         value={user.email}
                         onChange={(e) => setUser({ ...user, email: e.target.value })}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <EmailOutlined sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <EmailOutlined sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
                     <TextField
@@ -123,25 +129,27 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                         type={showPassword ? "text" : "password"}
                         value={user.password}
                         onChange={(e) => setUser({ ...user, password: e.target.value })}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        aria-label="toggle password visibility"
-                                        onClick={() => setShowPassword((p) => !p)}
-                                        edge="end"
-                                        size="small"
-                                    >
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle password visibility"
+                                            onClick={() => setShowPassword((p) => !p)}
+                                            edge="end"
+                                            size="small"
+                                        >
+                                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
                     <TextField
@@ -150,25 +158,27 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                         type={showConfirmPassword ? "text" : "password"}
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
-                                </InputAdornment>
-                            ),
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        aria-label="toggle confirm password visibility"
-                                        onClick={() => setShowConfirmPassword((p) => !p)}
-                                        edge="end"
-                                        size="small"
-                                    >
-                                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                            sx: { borderRadius: 2 },
+                        slotProps={{
+                            input: {
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <LockOutlined sx={{ color: "primary.main", fontSize: 22 }} />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <IconButton
+                                            aria-label="toggle confirm password visibility"
+                                            onClick={() => setShowConfirmPassword((p) => !p)}
+                                            edge="end"
+                                            size="small"
+                                        >
+                                            {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                                        </IconButton>
+                                    </InputAdornment>
+                                ),
+                                sx: { borderRadius: 2 },
+                            },
                         }}
                     />
 
@@ -199,7 +209,7 @@ function UserForm({ onSubmit, initialRole, isSubmitting, onLoginClick }: UserFor
                     <Typography variant="body2" color="grey.600" sx={{ textAlign: "center", mt: 2 }}>
                         Already have an account?{" "}
                         {onLoginClick ? (
-                            <Link component="button" onClick={onLoginClick} color="primary.main" fontWeight={600} underline="always" sx={{ bg: "none", border: "none", cursor: "pointer", font: "inherit", p: 0 }}>
+                            <Link component="button" type="button" onClick={onLoginClick} color="primary.main" fontWeight={600} underline="always" sx={{ bg: "none", border: "none", cursor: "pointer", font: "inherit", p: 0 }}>
                                 Log In
                             </Link>
                         ) : (

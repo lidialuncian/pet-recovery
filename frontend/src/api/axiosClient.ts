@@ -21,15 +21,15 @@ axiosClient.interceptors.request.use(
     }
 );
 
-// Handle token expiration
+// Handle token expiration (skip for login request so invalid credentials show on login page)
 axiosClient.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401 || error.response?.status === 403) {
+        const isLoginRequest = error.config?.url?.includes("/login") ?? false;
+        if (!isLoginRequest && (error.response?.status === 401 || error.response?.status === 403)) {
             // Token expired or invalid
             localStorage.removeItem("token");
             localStorage.removeItem("user");
-            // Optionally redirect to login
             if (window.location.pathname !== "/") {
                 window.location.href = "/";
             }

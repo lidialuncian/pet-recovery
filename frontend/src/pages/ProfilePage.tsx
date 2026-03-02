@@ -51,7 +51,7 @@ function ProfilePage() {
     return (
         <div>
             <h1>Profile</h1>
-            <p><strong>Name:</strong> {user.name}</p>
+            <p><strong>Name:</strong> {[user.first_name, user.last_name].filter(Boolean).join(" ") || user.email}</p>
             <p><strong>Email:</strong> {user.email}</p>
             <p><strong>Role:</strong> {user.role}</p>
             <p><strong>Member since:</strong> {new Date(user.created_at).toLocaleDateString()}</p>

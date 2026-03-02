@@ -131,3 +131,232 @@ It is focused on structured follow-up care, not a full EHR or clinic management 
 
 
 **Database tables (MVP) + relationships**
+*Identity / clinic membership*
+
+# users
+    Stores account identity
+    key fields: id, email, password_hash, first_name, last_name, role
+        id uuid
+        email text (unique, not null)
+        password_hash text (or use Supabase Auth and don’t store this yourself)
+        first_name text
+        last_name text
+        role text with CHECK
+            values: owner, vet, admin
+
+# clinics
+    id, name, contact_email, phone
+        id uuid
+        name text
+        contact_email text
+        phone text (phone formatting varies; text is safest)
+
+# user_clinic_roles
+    Links users to clinics with a clinic-context role
+    id, user_id (FK users), clinic_id (FK clinics), role_in_clinic, status
+        id uuid
+        user_id uuid FK → users.id
+        clinic_id uuid FK → clinics.id
+        role_in_clinic text with CHECK
+            values: vet, admin
+        status text with CHECK
+            values: active, disabled
+
+***Relationships***
+users 1..N user_clinic_roles
+
+clinics 1..N user_clinic_roles
+
+
+
+*Pets, owners, clinic patient registry*
+
+# pets
+    Global pet record
+    id, name, species, breed, sex, date_of_birth, weight_baseline
+    optional convenience: primary_clinic_id (FK clinics)
+        id uuid
+        name text
+        species text 
+        breed text (optional)
+        sex text with CHECK (male, female, unknown)
+        date_of_birth date (date is fine; time not needed)
+        weight_baseline numeric(6,2) (kg, allows e.g. 123.45)
+        primary_clinic_id uuid FK → clinics.id (nullable)
+        profile_photo_path text
+
+# pet_owners
+    Pet ownership/access mapping
+    id, pet_id (FK pets), owner_user_id (FK users), is_primary
+        id uuid
+        pet_id uuid FK → pets.id
+        owner_user_id uuid FK → users.id
+        is_primary boolean
+
+# clinic_pets
+    Clinic-patient relationship
+    id, clinic_id (FK clinics), pet_id (FK pets), patient_number
+        id uuid
+        clinic_id uuid FK → clinics.id
+        pet_id uuid FK → pets.id
+        patient_number text (often contains letters; text is safest)
+
+***Relationships***
+pets 1..N pet_owners
+
+users (owners) 1..N pet_owners
+
+clinics 1..N clinic_pets
+
+pets 1..N clinic_pets
+
+(Important: no direct relationship between pet_owners and clinic_pets; both connect through pets.)
+
+
+
+*Care plans (recovery cases) and structured monitoring*
+
+# care_plans
+    Recovery episode created by vet
+    id, pet_id (FK pets), clinic_id (FK clinics), assigned_vet_user_id (FK users), status, start_date, discharge_at, closed_at
+        id uuid
+        pet_id uuid FK → pets.id
+        clinic_id uuid FK → clinics.id
+        assigned_vet_user_id uuid FK → users.id
+        status text with CHECK
+            values: draft, in_clinic, at_home, follow_up, closed
+        start_date date
+        discharge_at timestamptz (nullable)
+        closed_at timestamptz (nullable)
+
+# care_plan_tasks
+    What to track/do in that care plan
+    id, care_plan_id (FK care_plans), task_type, label, is_required, frequency, sort_order
+        id uuid
+        care_plan_id uuid FK → care_plans.id
+        task_type text with CHECK
+            values like: boolean, number, scale, text, photo
+        label text
+        is_required boolean not null
+        frequency text with CHECK (MVP)
+            values: daily, weekly, once, as_needed
+        sort_order int not null
+
+# care_plan_task_entries
+    Actual submitted values over time
+    id, task_id (FK care_plan_tasks), care_plan_id (FK care_plans), entered_by_user_id (FK users), entered_by_role, value_json, note, created_at
+        id uuid
+        task_id uuid FK → care_plan_tasks.id
+        care_plan_id uuid FK → care_plans.id
+        entered_by_user_id uuid FK → users.id
+        entered_by_role text with CHECK (owner, vet, bot, staff)
+        value_json jsonb not null
+        note text
+        created_at timestamptz not null default now()
+
+***Relationships***
+pets 1..N care_plans
+
+clinics 1..N care_plans
+
+users (vet) 1..N care_plans via assigned_vet_user_id
+
+care_plans 1..N care_plan_tasks
+
+care_plan_tasks 1..N care_plan_task_entries
+
+users 1..N care_plan_task_entries (who entered it)
+
+
+*Medications*
+
+# medications
+    Prescription/setup
+    id, care_plan_id (FK care_plans), name, dose, unit, route, frequency, instructions, start_date, end_date
+        id uuid
+        care_plan_id uuid FK → care_plans.id
+        name text
+        dose numeric(10,2) (supports decimals)
+        unit text (mg, ml, tablet, etc.)
+        route text (oral, topical, etc.)
+        frequency text (e.g. “BID”, “every 8 hours” — keep text for MVP)
+        instructions text
+        start_date date
+        end_date date (nullable)
+
+# medication_doses
+    Dose events (taken/missed)
+    id, medication_id (FK medications), scheduled_at, taken_at, status, entered_by_user_id (FK users), reason, created_at
+        id uuid
+        medication_id uuid FK → medications.id
+        scheduled_at timestamp (nullable if you only log taken/missed without schedule)
+        taken_at timestamp (nullable)
+        status text with CHECK (taken, missed, skipped)
+        entered_by_user_id uuid FK → users.id
+        reason text
+        created_at timestamptz not null default now()
+
+***Relationships***
+care_plans 1..N medications
+
+medications 1..N medication_doses
+
+users 1..N medication_doses (who confirmed it)
+
+
+
+*Messaging + alerts + attachments*
+
+# messages
+    Owner/bot/vet conversation per care plan
+    id, care_plan_id (FK care_plans), sender_user_id (FK users), sender_role, text, channel, created_at
+        id uuid
+        care_plan_id uuid FK → care_plans.id
+        sender_user_id uuid FK → users.id (nullable for bot)
+        sender_role text with CHECK (owner, vet, bot, staff)
+        text text
+        channel text with CHECK (in_app, assistant)
+        created_at timestamptz not null default now()`
+
+# alerts
+    Red-flag escalation (often triggered by a message)
+    id, care_plan_id (FK care_plans), message_id (FK messages), severity, trigger_type, status, summary, created_at
+        id uuid
+        care_plan_id uuid FK → care_plans.id
+        message_id uuid FK → messages.id (nullable if alert comes from rule on entries, etc.)
+        severity text with CHECK (monitor, urgent, critical)
+        trigger_type text with CHECK (rules, assistant) (or keyword, model, etc.)
+        status text with CHECK (new, acknowledged, resolved)
+        summary text
+        created_at timestamptz not null default now()`
+
+# attachments
+    Files linked to a care plan
+    id, care_plan_id (FK care_plans), uploaded_by_user_id (FK users), type, file_url, metadata_json, created_at
+        id uuid
+        care_plan_id uuid FK → care_plans.id
+        uploaded_by_user_id uuid FK → users.id
+        type text with CHECK (photo, wound_photo, video, document, other)
+        file_url text (store storage path/key, not public URL)
+        metadata_json jsonb not null default '{}'::jsonb
+        created_at timestamptz not null default now()`
+
+***Relationships***
+care_plans 1..N messages
+
+messages 0..N alerts (some messages trigger alerts)
+
+care_plans 1..N alerts
+
+care_plans 1..N attachments
+
+users 1..N messages / attachments (who created/uploaded)
+
+
+**Supabase Storage (pet profile photos)**
+- Backend uploads to bucket `pet-photos` at path `pets/<petId>/profile.<ext>`.
+- **RLS error fix:** The backend must use the **service_role** key (Project Settings → API → `service_role` secret), not the anon key. Set `SUPABASE_KEY` in `.env` to the service_role key so Storage uploads are allowed (service role bypasses RLS).
+- Create the bucket `pet-photos` in Supabase Dashboard → Storage.
+- **Images (signed URLs):** The backend returns time-limited signed URLs for `profile_photo_url`, so the bucket can stay **private**. You do not need to set the bucket to Public.
+- If you cannot use the service_role key, add a Storage policy in Supabase (Storage → pet-photos → Policies) that allows uploads and that allows the backend to create signed URLs (e.g. select/read for the object path).
+

@@ -35,9 +35,12 @@ function LoginPage() {
             localStorage.setItem("user", JSON.stringify(result.user));
             setUser(result.user);
             navigate(`/home/${result.user.role}`, { replace: true });
-        } catch (error: any) {
-            console.error("Error logging in:", error);
-            setError(error.response?.data?.message || error.message || "Failed to login. Please try again.");
+        } catch (err: unknown) {
+            console.error("Error logging in:", err);
+            const ax = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+            const message =
+                ax.response?.data?.message ?? ax.response?.data?.error ?? ax.message ?? "Invalid email or password. Please try again.";
+            setError(message);
         } finally {
             setIsSubmitting(false);
         }
