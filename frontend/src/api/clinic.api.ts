@@ -8,6 +8,12 @@ export async function getClinics(): Promise<Clinic[]> {
   return res.data;
 }
 
+/** Clinics where the current user is a vet */
+export async function getVetClinics(): Promise<Clinic[]> {
+  const res = await axiosClient.get<Clinic[]>("/vet/clinics");
+  return res.data;
+}
+
 export async function getVetsAvailable(): Promise<User[]> {
   const res = await axiosClient.get<User[]>("/clinics/vets-available");
   return res.data;
@@ -22,8 +28,9 @@ export async function addVetToClinic(clinicId: string, userId: string): Promise<
   await axiosClient.post(`/clinics/${clinicId}/vets`, { user_id: userId });
 }
 
-export async function getClinicPets(clinicId: string): Promise<ClinicPet[]> {
-  const res = await axiosClient.get<ClinicPet[]>(`/clinics/${clinicId}/pets`);
+export async function getClinicPets(clinicId: string, withDetails?: boolean): Promise<ClinicPet[] | (ClinicPet & { pet: Pet })[]> {
+  const url = withDetails ? `/clinics/${clinicId}/pets?details=true` : `/clinics/${clinicId}/pets`;
+  const res = await axiosClient.get<ClinicPet[] | (ClinicPet & { pet: Pet })[]>(url);
   return res.data;
 }
 

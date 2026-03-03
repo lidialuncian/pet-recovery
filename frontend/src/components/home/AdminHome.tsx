@@ -55,9 +55,12 @@ const actionButtonStyle = {
 
 type AdminOutletContext = { user: User };
 
-export default function AdminHome() {
-  const { user } = useOutletContext<AdminOutletContext>();
-  const displayName = [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email;
+export type AdminHomeProps = { user?: User };
+
+export default function AdminHome(props?: AdminHomeProps) {
+  const context = useOutletContext<AdminOutletContext | undefined>();
+  const user = props?.user ?? context?.user;
+  const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email : "";
 
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [vets, setVets] = useState<User[]>([]);
@@ -171,6 +174,8 @@ export default function AdminHome() {
   const onPetFocus = () => {
     if (pets.length === 0) fetchPets();
   };
+
+  if (!user) return null;
 
   return (
     <Box sx={{ width: "100%", maxWidth: 1200 }}>

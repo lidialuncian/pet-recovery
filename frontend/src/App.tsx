@@ -5,8 +5,13 @@ import OwnerLayout from './components/owner/OwnerLayout';
 import OwnerHome from './components/home/OwnerHome';
 import OwnerPetsPage from './pages/owner/OwnerPetsPage';
 import OwnerPlansPage from './pages/owner/OwnerPlansPage';
+import OwnerCarePlanDetailPage from './pages/owner/OwnerCarePlanDetailPage';
 import OwnerAddPetPage from './pages/owner/OwnerAddPetPage';
-import VetHomePage from './pages/vet/VetHomePage';
+import VetLayout from './components/vet/VetLayout';
+import VetHome from './components/home/VetHome';
+import VetPatientsPage from './pages/vet/VetPatientsPage';
+import VetCarePlansPage from './pages/vet/VetCarePlansPage';
+import VetCarePlanDetailPage from './pages/vet/VetCarePlanDetailPage';
 import AdminLayout from './components/admin/AdminLayout';
 import AdminHome from './components/home/AdminHome';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -26,9 +31,15 @@ function App() {
           <Route index element={<OwnerHome />} />
           <Route path="pets" element={<OwnerPetsPage />} />
           <Route path="plans" element={<OwnerPlansPage />} />
+          <Route path="plans/:planId" element={<OwnerCarePlanDetailPage />} />
           <Route path="add-pet" element={<OwnerAddPetPage />} />
         </Route>
-        <Route path="/home/vet" element={<ProtectedRoute><VetHomePage /></ProtectedRoute>} />
+        <Route path="/home/vet" element={<ProtectedRoute><VetLayout /></ProtectedRoute>}>
+          <Route index element={<VetHome />} />
+          <Route path="patients" element={<VetPatientsPage />} />
+          <Route path="plans" element={<VetCarePlansPage />} />
+          <Route path="plans/:planId" element={<VetCarePlanDetailPage />} />
+        </Route>
         <Route path="/home/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
           <Route index element={<AdminHome />} />
         </Route>

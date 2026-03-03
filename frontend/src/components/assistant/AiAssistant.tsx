@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Box from "@mui/material/Box";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -7,16 +7,21 @@ import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
+import Alert from "@mui/material/Alert";
 import Close from "@mui/icons-material/Close";
 import SendRounded from "@mui/icons-material/SendRounded";
 import SmartToyOutlined from "@mui/icons-material/SmartToyOutlined";
 import PersonOutline from "@mui/icons-material/PersonOutline";
+import { getAssistantMessages, sendAssistantMessage } from "../../api/assistant.api";
 
 const DISCLAIMER =
   "This assistant answers questions about your care plan and pet recovery. It does not provide diagnoses or medication recommendations—always consult your veterinarian for medical advice. Concerns may be escalated to your vet when needed.";
 
 const WELCOME_MESSAGE =
   "Hi! I can help with questions about your pet's care plan and recovery. I don't provide diagnoses or medication advice—please contact your vet for that. What would you like to know?";
+
+const WELCOME_WITH_PLAN =
+  "Hi! You're viewing your care plan. I can help with questions about your assigned tasks, recovery steps, or treatment. I don't provide diagnoses or medication advice—please contact your vet for that. What would you like to know?";
 
 type Message = {
   id: string;
@@ -25,21 +30,35 @@ type Message = {
   timestamp: Date;
 };
 
+type PlanContext = {
+  planId: string;
+  status: string;
+};
+
 type AiAssistantProps = {
   open: boolean;
   onClose: () => void;
+  /** When owner is viewing a care plan, pass context so the assistant can reference it */
+  planContext?: PlanContext | null;
 };
 
-export default function AiAssistant({ open, onClose }: AiAssistantProps) {
+function dtoToMessage(dto: { id: string; role: "user" | "assistant"; text: string; created_at: string }): Message {
+  return {
+    id: dto.id,
+    role: dto.role,
+    content: dto.text,
+    timestamp: new Date(dto.created_at),
+  };
+}
+
+export default function AiAssistant({ open, onClose, planContext }: AiAssistantProps) {
+  const welcome = planContext ? WELCOME_WITH_PLAN : WELCOME_MESSAGE;
   const [messages, setMessages] = useState<Message[]>(() => [
-    {
-      id: "welcome",
-      role: "assistant",
-      content: WELCOME_MESSAGE,
-      timestamp: new Date(),
-    },
+    { id: "welcome", role: "assistant", content: welcome, timestamp: new Date() },
   ]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [alertNotice, setAlertNotice] = useState<{ severity: string; summary: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,7 +67,29 @@ export default function AiAssistant({ open, onClose }: AiAssistantProps) {
     if (open) scrollToBottom();
   }, [open, messages]);
 
-  const handleSend = () => {
+  const loadHistory = useCallback(async () => {
+    if (!planContext?.planId) return;
+    try {
+      const list = await getAssistantMessages(planContext.planId);
+      if (list.length > 0) {
+        setMessages(list.map(dtoToMessage));
+      } else {
+        setMessages([{ id: "welcome", role: "assistant", content: WELCOME_WITH_PLAN, timestamp: new Date() }]);
+      }
+    } catch {
+      setMessages([{ id: "welcome", role: "assistant", content: WELCOME_WITH_PLAN, timestamp: new Date() }]);
+    }
+  }, [planContext?.planId]);
+
+  useEffect(() => {
+    if (open && planContext?.planId) {
+      loadHistory();
+    } else if (open) {
+      setMessages([{ id: "welcome", role: "assistant", content: WELCOME_MESSAGE, timestamp: new Date() }]);
+    }
+  }, [open, planContext?.planId, loadHistory]);
+
+  const handleSend = async () => {
     const text = input.trim();
     if (!text) return;
 
@@ -60,16 +101,47 @@ export default function AiAssistant({ open, onClose }: AiAssistantProps) {
     };
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
+    setAlertNotice(null);
 
-    // Placeholder response until backend is connected. No diagnostics or medication advice.
-    const assistantMessage: Message = {
-      id: `assistant-${Date.now()}`,
-      role: "assistant",
-      content:
-        "I'm here to help with care plan and recovery questions. For anything that sounds urgent or medical, our system may share it with your vet so they can follow up. Is there something specific about your pet's care plan or daily tasks you'd like to know more about?",
-      timestamp: new Date(),
-    };
-    setTimeout(() => setMessages((prev) => [...prev, assistantMessage]), 600);
+    if (planContext?.planId) {
+      setLoading(true);
+      try {
+        const result = await sendAssistantMessage(planContext.planId, text);
+        const textContent = typeof result?.assistantText === "string" ? result.assistantText : "";
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: "assistant",
+          content: textContent || "The assistant didn't return a response. Please try again or contact your clinic.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        if (result?.alertCreated) setAlertNotice(result.alertCreated);
+      } catch (err: unknown) {
+        const ax = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
+        console.error("[Recovery Assistant] Chat request failed:", ax.response?.status ?? ax.message ?? err);
+        const status = ax.response?.status;
+        const serverMessage = ax.response?.data?.error;
+        let content = "Something went wrong. Please try again or contact your clinic.";
+        if (status === 404) content = "Care plan not found or you don't have access. Please refresh the page.";
+        else if (status === 429 || status === 503) content = "The assistant is busy. Please try again in a moment.";
+        else if (typeof serverMessage === "string" && serverMessage) content = serverMessage;
+        setMessages((prev) => [
+          ...prev,
+          { id: `assistant-${Date.now()}`, role: "assistant", content, timestamp: new Date() },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      const placeholder: Message = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        content:
+          "I'm here to help with care plan and recovery questions. Open a care plan and use this chat to get answers in context of your pet's plan.",
+        timestamp: new Date(),
+      };
+      setTimeout(() => setMessages((prev) => [...prev, placeholder]), 400);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -127,6 +199,12 @@ export default function AiAssistant({ open, onClose }: AiAssistantProps) {
           {DISCLAIMER}
         </Typography>
       </Box>
+
+      {alertNotice && (
+        <Alert severity="info" sx={{ mx: 2, mt: 1 }} onClose={() => setAlertNotice(null)}>
+          An alert was sent to your vet. They may follow up with you.
+        </Alert>
+      )}
 
       <DialogContent sx={{ p: 0, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <Box
@@ -211,7 +289,7 @@ export default function AiAssistant({ open, onClose }: AiAssistantProps) {
             <Button
               variant="contained"
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || loading}
               sx={{
                 borderRadius: 2,
                 minWidth: 48,

@@ -8,19 +8,18 @@ import AppLayout from "../layout/AppLayout";
 import type { SidebarEntry } from "../layout/AppSidebar";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/home/owner": "Home",
-  "/home/owner/pets": "My Pets",
-  "/home/owner/plans": "Care Plans",
-  "/home/owner/add-pet": "Add a Pet",
+  "/home/vet": "Home",
+  "/home/vet/patients": "Patients",
+  "/home/vet/plans": "Care Plans",
 };
 
-const OWNER_SIDEBAR_ENTRIES: SidebarEntry[] = [
-  { to: "/home/owner", icon: <HomeRounded sx={{ fontSize: 22 }} />, label: "Home" },
-  { to: "/home/owner/pets", icon: <PetsRounded sx={{ fontSize: 22 }} />, label: "My Pets" },
-  { to: "/home/owner/plans", icon: <AssignmentRounded sx={{ fontSize: 22 }} />, label: "Care Plans" },
+const VET_SIDEBAR_ENTRIES: SidebarEntry[] = [
+  { to: "/home/vet", icon: <HomeRounded sx={{ fontSize: 22 }} />, label: "Home" },
+  { to: "/home/vet/patients", icon: <PetsRounded sx={{ fontSize: 22 }} />, label: "Patients" },
+  { to: "/home/vet/plans", icon: <AssignmentRounded sx={{ fontSize: 22 }} />, label: "Care Plans" },
 ];
 
-function OwnerLayout() {
+function VetLayout() {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,7 +33,7 @@ function OwnerLayout() {
     try {
       const parsed: User = JSON.parse(stored);
       setUser(parsed);
-      if (parsed.role !== "owner") {
+      if (parsed.role !== "vet") {
         navigate(`/home/${parsed.role}`, { replace: true });
       }
     } catch {
@@ -52,21 +51,20 @@ function OwnerLayout() {
 
   const displayName = user.first_name || user.email?.split("@")[0] || "User";
   const path = location.pathname;
-  const pageTitle = PAGE_TITLES[path] ?? (path.startsWith("/home/owner/plans/") && path !== "/home/owner/plans" ? "Plan" : "Home");
+  const pageTitle = PAGE_TITLES[path] ?? (path.startsWith("/home/vet/plans/") && path !== "/home/vet/plans" ? "Plan tasks" : "Home");
 
   return (
     <AppLayout
       displayName={displayName}
-      homePath="/home/owner"
+      homePath="/home/vet"
       pageTitle={pageTitle}
-      sidebarEntries={OWNER_SIDEBAR_ENTRIES}
+      sidebarEntries={VET_SIDEBAR_ENTRIES}
       activePath={path}
       onLogout={handleLogout}
-      // mainBackgroundImage="/pet_recovery_owner_home_background.svg"
     >
       <Outlet context={{ user }} />
     </AppLayout>
   );
 }
 
-export default OwnerLayout;
+export default VetLayout;

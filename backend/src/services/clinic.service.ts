@@ -4,6 +4,31 @@ import type { UserDto } from "../types/user.dto";
 import type { PetDto } from "../types/pet.dto";
 
 export class ClinicService {
+  /** Clinics where the given user has vet role in user_clinic_roles */
+  async getClinicsForVet(vetUserId: string): Promise<ClinicDto[]> {
+    const { data: roles, error: rolesError } = await supabase
+      .from("user_clinic_roles")
+      .select("clinic_id")
+      .eq("user_id", vetUserId)
+      .eq("role_in_clinic", "vet")
+      .eq("status", "active");
+
+    if (rolesError || !roles?.length) return [];
+    const clinicIds = roles.map((r) => r.clinic_id);
+
+    const { data: clinics, error } = await supabase
+      .from("clinics")
+      .select("*")
+      .in("id", clinicIds)
+      .order("name");
+
+    if (error) {
+      console.error("Supabase error fetching clinics for vet:", error);
+      throw new Error(error.message);
+    }
+    return (clinics ?? []) as ClinicDto[];
+  }
+
   /** Clinics where the given user has admin role in user_clinic_roles */
   async getClinicsForAdmin(adminUserId: string): Promise<ClinicDto[]> {
     const { data: roles, error: rolesError } = await supabase
@@ -27,6 +52,20 @@ export class ClinicService {
       throw new Error(error.message);
     }
     return (clinics ?? []) as ClinicDto[];
+  }
+
+  /** Check if user is vet at the given clinic */
+  async isVetAtClinic(userId: string, clinicId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .from("user_clinic_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("clinic_id", clinicId)
+      .eq("role_in_clinic", "vet")
+      .eq("status", "active")
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
   }
 
   /** Check if user is admin of the given clinic */
@@ -89,10 +128,11 @@ export class ClinicService {
     return data as UserClinicRoleDto;
   }
 
-  /** List pets registered at a clinic (clinic_pets) */
+  /** List pets registered at a clinic (clinic_pets). Caller must be admin or vet of clinic. */
   async getPetsInClinic(clinicId: string, adminUserId: string): Promise<ClinicPetDto[]> {
     const isAdmin = await this.isAdminOfClinic(adminUserId, clinicId);
-    if (!isAdmin) throw new Error("Clinic not found or access denied");
+    const isVet = await this.isVetAtClinic(adminUserId, clinicId);
+    if (!isAdmin && !isVet) throw new Error("Clinic not found or access denied");
 
     const { data, error } = await supabase
       .from("clinic_pets")
@@ -105,6 +145,17 @@ export class ClinicService {
       throw new Error(error.message);
     }
     return (data ?? []) as ClinicPetDto[];
+  }
+
+  /** List clinic pets with pet details (name, species, etc.) for vet/admin UI */
+  async getPetsInClinicWithDetails(clinicId: string, userId: string): Promise<(ClinicPetDto & { pet: PetDto })[]> {
+    const rows = await this.getPetsInClinic(clinicId, userId);
+    if (!rows.length) return [];
+    const petIds = rows.map((r) => r.pet_id);
+    const { data: pets, error } = await supabase.from("pets").select("*").in("id", petIds);
+    if (error || !pets?.length) return rows.map((r) => ({ ...r, pet: {} as PetDto }));
+    const petMap = new Map((pets as PetDto[]).map((p) => [p.id, p]));
+    return rows.map((r) => ({ ...r, pet: petMap.get(r.pet_id) ?? ({} as PetDto) }));
   }
 
   /** Add a pet to a clinic. Caller must be admin of clinic. */

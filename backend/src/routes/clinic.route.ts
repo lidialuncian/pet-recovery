@@ -63,13 +63,17 @@ clinicRouter.post("/:id/vets", ...adminOnly, async (req: Request, res: Response)
   }
 });
 
-clinicRouter.get("/:id/pets", ...adminOnly, async (req: Request, res: Response) => {
+/** List pets in clinic with pet details. Allowed for admin or vet of that clinic. */
+clinicRouter.get("/:id/pets", authenticateToken, async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ error: "User not authenticated" });
     const clinicId = String(req.params.id);
-    const pets = await clinicService.getPetsInClinic(clinicId, userId);
-    res.status(200).json(pets);
+    const withDetails = req.query.details === "true" || req.query.details === "1";
+    const data = withDetails
+      ? await clinicService.getPetsInClinicWithDetails(clinicId, userId)
+      : await clinicService.getPetsInClinic(clinicId, userId);
+    res.status(200).json(data);
   } catch (error: unknown) {
     console.error("Error fetching clinic pets:", error);
     const message = error instanceof Error ? error.message : "Failed to fetch clinic pets";

@@ -228,6 +228,8 @@ pets 1..N clinic_pets
         start_date date
         discharge_at timestamptz (nullable)
         closed_at timestamptz (nullable)
+        description text
+        title text
 
 # care_plan_tasks
     What to track/do in that care plan
@@ -241,6 +243,11 @@ pets 1..N clinic_pets
         frequency text with CHECK (MVP)
             values: daily, weekly, once, as_needed
         sort_order int not null
+        description text
+        schedule_time time
+        due_window_minutes int
+        value_schema jsonb default '{}'::jsonb
+        status text default 'active'
 
 # care_plan_task_entries
     Actual submitted values over time
