@@ -30,12 +30,12 @@ export type ChatResult = {
   alertCreated?: { severity: string; summary: string };
 };
 
-function loadFipPrompt(): string {
-  const filePath = path.join(__dirname, "..", "prompts", "fip.md");
+function loadAssistantPrompt(): string {
+  const filePath = path.join(__dirname, "..", "prompts", "assistant.md");
   try {
     return fs.readFileSync(filePath, "utf-8");
   } catch (e) {
-    console.error("Failed to load fip.md:", e);
+    console.error("Failed to load assistant.md:", e);
     return "You are a Pet Recovery Assistant. You support pet owners during a care plan. You do NOT provide diagnoses. Encourage contacting the vet when needed. If the owner reports alarming symptoms, tell them to contact the clinic and create an alert.";
   }
 }
@@ -150,8 +150,8 @@ export async function getPlanContextForAssistant(planId: string, ownerUserId: st
     tasksDetail,
   });
 
-  const fipBase = loadFipPrompt();
-  const systemPrompt = fipBase + "\n" + planContextText;
+  const promptBase = loadAssistantPrompt();
+  const systemPrompt = promptBase + "\n" + planContextText;
   return { systemPrompt, planContextText };
 }
 
