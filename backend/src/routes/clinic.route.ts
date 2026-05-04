@@ -2,12 +2,28 @@ import { Router, Request, Response } from "express";
 import { authenticateToken } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/requireAdmin.middleware";
 import { ClinicService } from "../services/clinic.service";
-import type { AddVetToClinicDto, AddPetToClinicDto } from "../types/clinic.dto";
+import type { AddVetToClinicDto, AddPetToClinicDto, RegisterClinicDto } from "../types/clinic.dto";
 
 const clinicRouter = Router();
 const clinicService = new ClinicService();
 
 const adminOnly = [authenticateToken, requireAdmin];
+
+/** POST /clinics/register — public, creates a new clinic + admin user */
+clinicRouter.post("/register", async (req: Request, res: Response) => {
+  try {
+    const dto = req.body as RegisterClinicDto;
+    if (!dto.clinic_name || !dto.first_name || !dto.last_name || !dto.email || !dto.password) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+    const result = await clinicService.registerClinic(dto);
+    res.status(201).json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Failed to register clinic";
+    const status = message.includes("already exists") ? 409 : 500;
+    res.status(status).json({ error: message });
+  }
+});
 
 clinicRouter.get("/", ...adminOnly, async (req: Request, res: Response) => {
   try {

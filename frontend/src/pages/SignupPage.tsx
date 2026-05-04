@@ -10,52 +10,74 @@ import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 import KeyboardArrowDown from "@mui/icons-material/KeyboardArrowDown";
 import Header from "../components/Header";
-import UserForm from "../components/UserForm";
-import { createUser, login } from "../services/user.service";
-import type { CreateUser, SignupRole } from "../types/user.types";
+import ClinicRegistrationForm from "../components/ClinicRegistrationForm";
+import InvitedSignupForm from "../components/InvitedSignupForm";
+import { registerClinic, createUser, login } from "../services/user.service";
+import type { RegisterClinicPayload, CreateUser } from "../types/user.types";
 
-const ROLES: { id: SignupRole; label: string; image: string }[] = [
+type SignupMode = "admin" | "vet" | "owner";
+
+const OPTIONS: { id: SignupMode; label: string; image: string }[] = [
+  { id: "admin", label: "I am a Clinic Administrator", image: "/role_clinic_admin.svg" },
   { id: "vet", label: "I am a Veterinarian", image: "/role_veterinarian.svg" },
   { id: "owner", label: "I am a Pet Owner", image: "/role_owner.svg" },
-  { id: "admin", label: "I am a Clinic Admin", image: "/role_clinic_admin.svg" },
 ];
 
 function SignupPage() {
   const navigate = useNavigate();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<SignupRole | null>(null);
+  const [mode, setMode] = useState<SignupMode | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRoleSelect = (roleId: SignupRole) => {
-    setSelectedRole(roleId);
-    setModalOpen(true);
-  };
-
-  const handleCloseModal = useCallback(() => {
-    if (!isSubmitting) setModalOpen(false);
+  const handleClose = useCallback(() => {
+    if (!isSubmitting) setMode(null);
   }, [isSubmitting]);
 
-  const handleUserSubmit = useCallback(async (user: CreateUser) => {
-    setIsSubmitting(true);
-    try {
-      await createUser(user);
-      const { token, user: loggedInUser } = await login({ email: user.email, password: user.password });
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(loggedInUser));
-      setModalOpen(false);
-      navigate(`/home/${loggedInUser.role}`, { replace: true });
-    } catch (error) {
-      console.error("Error creating user:", error);
-      alert("Failed to create user. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [navigate]);
-
   const handleLoginClick = useCallback(() => {
-    setModalOpen(false);
+    setMode(null);
     navigate("/login", { replace: true });
   }, [navigate]);
+
+  const saveAndRedirect = useCallback(
+    (token: string, user: { role: string }) => {
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      navigate(`/home/${user.role}`, { replace: true });
+    },
+    [navigate]
+  );
+
+  const handleClinicSubmit = useCallback(
+    async (payload: RegisterClinicPayload) => {
+      setIsSubmitting(true);
+      try {
+        const { token, user } = await registerClinic(payload);
+        saveAndRedirect(token, user);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to register clinic";
+        alert(msg);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [saveAndRedirect]
+  );
+
+  const handleInvitedSubmit = useCallback(
+    async (userData: CreateUser) => {
+      setIsSubmitting(true);
+      try {
+        await createUser(userData);
+        const { token, user } = await login({ email: userData.email, password: userData.password });
+        saveAndRedirect(token, user);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to create account";
+        alert(msg);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [saveAndRedirect]
+  );
 
   return (
     <Box
@@ -77,16 +99,13 @@ function SignupPage() {
 
       <Box
         component="main"
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          width: "100%",
-        }}
+        sx={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}
       >
-        <Typography variant="h3" fontWeight={700} color="grey.900" sx={{ mt: 10, mb: 10, textAlign: "center" }}>
+        <Typography variant="h3" fontWeight={700} color="grey.900" sx={{ mt: 10, mb: 4, textAlign: "center" }}>
           Sign Up
+        </Typography>
+        <Typography variant="body1" color="grey.600" sx={{ mb: 8, textAlign: "center" }}>
+          How would you like to join?
         </Typography>
 
         <Box
@@ -100,11 +119,11 @@ function SignupPage() {
             maxWidth: 1200,
           }}
         >
-          {ROLES.map((role) => (
+          {OPTIONS.map((opt) => (
             <Card
-              key={role.id}
+              key={opt.id}
               component={Button}
-              onClick={() => handleRoleSelect(role.id)}
+              onClick={() => setMode(opt.id)}
               variant="outlined"
               sx={{
                 width: 300,
@@ -115,10 +134,7 @@ function SignupPage() {
                 borderWidth: 2,
                 borderColor: "transparent",
                 boxShadow: 2,
-                "&:hover": {
-                  boxShadow: 4,
-                  borderColor: "primary.main",
-                },
+                "&:hover": { boxShadow: 4, borderColor: "primary.main" },
               }}
             >
               <CardContent sx={{ width: "100%", "&:last-child": { pb: 2 } }}>
@@ -134,10 +150,10 @@ function SignupPage() {
                     overflow: "hidden",
                   }}
                 >
-                  <Box component="img" src={role.image} alt="" sx={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  <Box component="img" src={opt.image} alt="" sx={{ width: "100%", height: "100%", objectFit: "contain" }} />
                 </Box>
                 <Typography variant="subtitle1" fontWeight={600} color="grey.900" sx={{ mb: 1 }}>
-                  {role.label}
+                  {opt.label}
                 </Typography>
                 <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
                   <KeyboardArrowDown sx={{ color: "grey.400" }} />
@@ -156,24 +172,25 @@ function SignupPage() {
       </Box>
 
       <Dialog
-        open={modalOpen}
-        onClose={handleCloseModal}
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            maxWidth: 440,
-            width: "100%",
-            m: 2,
-          },
-        }}
+        open={mode !== null}
+        onClose={handleClose}
+        slotProps={{ paper: { sx: { borderRadius: 3, maxWidth: 440, width: "100%", m: 2 } } }}
       >
         <DialogContent sx={{ p: 0 }}>
-          <UserForm
-            onSubmit={handleUserSubmit}
-            initialRole={selectedRole ?? undefined}
-            isSubmitting={isSubmitting}
-            onLoginClick={handleLoginClick}
-          />
+          {mode === "admin" && (
+            <ClinicRegistrationForm
+              onSubmit={handleClinicSubmit}
+              isSubmitting={isSubmitting}
+              onLoginClick={handleLoginClick}
+            />
+          )}
+          {(mode === "vet" || mode === "owner") && (
+            <InvitedSignupForm
+              onSubmit={handleInvitedSubmit}
+              isSubmitting={isSubmitting}
+              onLoginClick={handleLoginClick}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Box>

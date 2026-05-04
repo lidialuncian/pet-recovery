@@ -4,4 +4,5 @@ import clinicRouter from "./clinic.route";
 import vetRouter from "./vet.route";
 import carePlanRouter from "./carePlan.route";
 import carePlanTaskRouter from "./carePlanTask.route";
-export { userRouter, petRouter, clinicRouter, vetRouter, carePlanRouter, carePlanTaskRouter };
+import invitationRouter from "./invitation.route";
+export { userRouter, petRouter, clinicRouter, vetRouter, carePlanRouter, carePlanTaskRouter, invitationRouter };

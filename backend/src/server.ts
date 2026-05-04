@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import { userRouter, petRouter, clinicRouter, vetRouter, carePlanRouter, carePlanTaskRouter } from "./routes";
+import { userRouter, petRouter, clinicRouter, vetRouter, carePlanRouter, carePlanTaskRouter, invitationRouter } from "./routes";
 
 
 dotenv.config();
@@ -18,6 +18,7 @@ app.use("/clinics", clinicRouter);
 app.use("/vet", vetRouter);
 app.use("/care-plans", carePlanRouter);
 app.use("/care-plan-tasks", carePlanTaskRouter);
+app.use("/invitations", invitationRouter);
 app.listen(PORT, () => {
   console.log(`App is running on http://localhost:${PORT}`);
 });

@@ -1,7 +1,10 @@
 import { supabase } from "../lib/supabase";
-import type { ClinicDto, UserClinicRoleDto, ClinicPetDto } from "../types/clinic.dto";
+import type { ClinicDto, UserClinicRoleDto, ClinicPetDto, RegisterClinicDto } from "../types/clinic.dto";
 import type { UserDto } from "../types/user.dto";
 import type { PetDto } from "../types/pet.dto";
+import { hashPassword } from "../lib/hash";
+import { generateToken } from "../lib/jwt";
+import type { LoginResponseDto } from "../types/user.dto";
 
 export class ClinicService {
   /** Clinics where the given user has vet role in user_clinic_roles */
@@ -201,5 +204,70 @@ export class ClinicService {
       throw new Error(error.message);
     }
     return (data ?? []) as PetDto[];
+  }
+
+  /**
+   * Register a new clinic and create its first admin user in one operation.
+   * This is the public self-registration flow.
+   */
+  async registerClinic(dto: RegisterClinicDto): Promise<LoginResponseDto> {
+    // Check that the email is not already taken
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", dto.email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (existingUser) throw new Error("An account with this email already exists");
+
+    // Create the clinic
+    const { data: clinic, error: clinicError } = await supabase
+      .from("clinics")
+      .insert({ name: dto.clinic_name.trim() })
+      .select()
+      .single();
+
+    if (clinicError) throw new Error(`Failed to create clinic: ${clinicError.message}`);
+
+    // Create the admin user
+    const hashedPassword = await hashPassword(dto.password);
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .insert({
+        email: dto.email.toLowerCase().trim(),
+        password: hashedPassword,
+        first_name: dto.first_name.trim(),
+        last_name: dto.last_name.trim(),
+        role: "admin",
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      // Roll back clinic creation
+      await supabase.from("clinics").delete().eq("id", clinic.id);
+      throw new Error(`Failed to create admin user: ${userError.message}`);
+    }
+
+    // Link admin to clinic via user_clinic_roles
+    const { error: roleError } = await supabase.from("user_clinic_roles").insert({
+      user_id: user.id,
+      clinic_id: clinic.id,
+      role_in_clinic: "admin",
+      status: "active",
+    });
+
+    if (roleError) {
+      console.error("Failed to create user_clinic_roles entry:", roleError.message);
+    }
+
+    const { password: _pw, ...userWithoutPassword } = user;
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      role: "admin",
+    });
+
+    return { user: userWithoutPassword as UserDto, token };
   }
 }

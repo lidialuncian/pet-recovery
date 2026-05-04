@@ -31,3 +31,11 @@ export interface AddPetToClinicDto {
   pet_id: string;
   patient_number?: string | null;
 }
+
+export interface RegisterClinicDto {
+  clinic_name: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  password: string;
+}

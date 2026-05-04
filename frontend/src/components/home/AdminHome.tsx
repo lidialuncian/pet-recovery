@@ -10,17 +10,19 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import PersonAddRounded from "@mui/icons-material/PersonAddRounded";
 import PetsRounded from "@mui/icons-material/PetsRounded";
+import ContentCopyRounded from "@mui/icons-material/ContentCopyRounded";
 import {
   getClinics,
-  getVetsAvailable,
   getPetsAvailable,
-  addVetToClinic,
   addPetToClinic,
 } from "../../api/clinic.api";
+import { createInvitation } from "../../services/user.service";
 import type { Clinic } from "../../types/clinic.types";
-import type { User } from "../../types/user.types";
+import type { User, InvitationResult } from "../../types/user.types";
 import type { Pet } from "../../types/pet.types";
 
 const cardStyle = {
@@ -63,16 +65,17 @@ export default function AdminHome(props?: AdminHomeProps) {
   const displayName = user ? [user.first_name, user.last_name].filter(Boolean).join(" ") || user.email : "";
 
   const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [vets, setVets] = useState<User[]>([]);
   const [pets, setPets] = useState<Pet[]>([]);
   const [loadingClinics, setLoadingClinics] = useState(true);
-  const [loadingVets, setLoadingVets] = useState(false);
   const [loadingPets, setLoadingPets] = useState(false);
 
-  const [selectedClinicVet, setSelectedClinicVet] = useState<string>("");
-  const [selectedVet, setSelectedVet] = useState<string>("");
-  const [vetError, setVetError] = useState<string | null>(null);
-  const [vetSuccess, setVetSuccess] = useState(false);
+  const [inviteClinic, setInviteClinic] = useState<string>("");
+  const [inviteEmail, setInviteEmail] = useState<string>("");
+  const [inviteRole, setInviteRole] = useState<"vet" | "owner">("vet");
+  const [inviteResult, setInviteResult] = useState<InvitationResult | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [submittingInvite, setSubmittingInvite] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [selectedClinicPet, setSelectedClinicPet] = useState<string>("");
   const [selectedPet, setSelectedPet] = useState<string>("");
@@ -80,7 +83,6 @@ export default function AdminHome(props?: AdminHomeProps) {
   const [petError, setPetError] = useState<string | null>(null);
   const [petSuccess, setPetSuccess] = useState(false);
 
-  const [submittingVet, setSubmittingVet] = useState(false);
   const [submittingPet, setSubmittingPet] = useState(false);
 
   const fetchClinics = useCallback(async () => {
@@ -88,25 +90,13 @@ export default function AdminHome(props?: AdminHomeProps) {
     try {
       const list = await getClinics();
       setClinics(list);
-      setSelectedClinicVet((prev) => prev || list[0]?.id || "");
+      setInviteClinic((prev) => prev || list[0]?.id || "");
       setSelectedClinicPet((prev) => prev || list[0]?.id || "");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? (err as Error)?.message ?? "Failed to load clinics.";
       console.error(msg);
     } finally {
       setLoadingClinics(false);
-    }
-  }, []);
-
-  const fetchVets = useCallback(async () => {
-    setLoadingVets(true);
-    try {
-      const list = await getVetsAvailable();
-      setVets(list);
-    } catch (err: unknown) {
-      console.error("Failed to load vets", err);
-    } finally {
-      setLoadingVets(false);
     }
   }, []);
 
@@ -126,24 +116,31 @@ export default function AdminHome(props?: AdminHomeProps) {
     fetchClinics();
   }, [fetchClinics]);
 
-  const handleAddVet = async () => {
-    if (!selectedClinicVet || !selectedVet) {
-      setVetError("Please select a clinic and a vet.");
+  const handleSendInvite = async () => {
+    if (!inviteEmail.trim()) {
+      setInviteError("Please enter an email address.");
       return;
     }
-    setVetError(null);
-    setVetSuccess(false);
-    setSubmittingVet(true);
+    setInviteError(null);
+    setInviteResult(null);
+    setSubmittingInvite(true);
     try {
-      await addVetToClinic(selectedClinicVet, selectedVet);
-      setVetSuccess(true);
-      setSelectedVet("");
+      const result = await createInvitation(inviteEmail.trim(), inviteRole);
+      setInviteResult(result);
+      setInviteEmail("");
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? (err as Error)?.message ?? "Failed to add vet to clinic.";
-      setVetError(msg);
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? (err as Error)?.message ?? "Failed to create invitation.";
+      setInviteError(msg);
     } finally {
-      setSubmittingVet(false);
+      setSubmittingInvite(false);
     }
+  };
+
+  const handleCopyCode = () => {
+    if (!inviteResult) return;
+    navigator.clipboard.writeText(inviteResult.code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleAddPet = async () => {
@@ -165,10 +162,6 @@ export default function AdminHome(props?: AdminHomeProps) {
     } finally {
       setSubmittingPet(false);
     }
-  };
-
-  const onVetFocus = () => {
-    if (vets.length === 0) fetchVets();
   };
 
   const onPetFocus = () => {
@@ -207,19 +200,19 @@ export default function AdminHome(props?: AdminHomeProps) {
                   <PersonAddRounded sx={{ fontSize: 28, color: "#0d9488" }} />
                 </Box>
                 <Typography variant="h6" fontWeight={600} color="grey.900">
-                  Add vet to clinic
+                  Invite to clinic
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary">
-                Link a veterinarian to one of your clinics so they can manage care plans.
+                Send an invitation code to a vet or pet owner so they can create their account and join your clinic.
               </Typography>
               <FormControl fullWidth size="small">
-                <InputLabel id="clinic-vet-label">Clinic</InputLabel>
+                <InputLabel id="invite-clinic-label">Clinic</InputLabel>
                 <Select
-                  labelId="clinic-vet-label"
-                  value={selectedClinicVet}
+                  labelId="invite-clinic-label"
+                  value={inviteClinic}
                   label="Clinic"
-                  onChange={(e) => setSelectedClinicVet(e.target.value)}
+                  onChange={(e) => setInviteClinic(e.target.value)}
                   sx={{ borderRadius: 2 }}
                 >
                   {clinics.map((c) => (
@@ -228,33 +221,58 @@ export default function AdminHome(props?: AdminHomeProps) {
                 </Select>
               </FormControl>
               <FormControl fullWidth size="small">
-                <InputLabel id="vet-label">Vet</InputLabel>
+                <InputLabel id="invite-role-label">Role</InputLabel>
                 <Select
-                  labelId="vet-label"
-                  value={selectedVet}
-                  label="Vet"
-                  onFocus={onVetFocus}
-                  onChange={(e) => setSelectedVet(e.target.value)}
-                  disabled={loadingVets}
+                  labelId="invite-role-label"
+                  value={inviteRole}
+                  label="Role"
+                  onChange={(e) => setInviteRole(e.target.value as "vet" | "owner")}
                   sx={{ borderRadius: 2 }}
                 >
-                  <MenuItem value="">Select a vet</MenuItem>
-                  {vets.map((v) => (
-                    <MenuItem key={v.id} value={v.id}>
-                      {[v.first_name, v.last_name].filter(Boolean).join(" ") || v.email}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="vet">Veterinarian</MenuItem>
+                  <MenuItem value="owner">Pet Owner</MenuItem>
                 </Select>
               </FormControl>
-              {vetError && <Typography variant="body2" color="error">{vetError}</Typography>}
-              {vetSuccess && <Typography variant="body2" color="success.main">Vet added to clinic.</Typography>}
+              <TextField
+                fullWidth
+                size="small"
+                label="Email address"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); setInviteResult(null); }}
+                placeholder="vet@example.com"
+                slotProps={{ input: { sx: { borderRadius: 2 } } }}
+              />
+              {inviteError && <Typography variant="body2" color="error">{inviteError}</Typography>}
+              {inviteResult && (
+                <Box sx={{ bgcolor: "grey.50", border: "1px solid", borderColor: "grey.200", borderRadius: 2, p: 1.5 }}>
+                  <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
+                    Invitation code — share this with {inviteResult.email}
+                  </Typography>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Typography
+                      variant="body2"
+                      fontFamily="monospace"
+                      fontWeight={600}
+                      sx={{ flex: 1, wordBreak: "break-all", letterSpacing: 1 }}
+                    >
+                      {inviteResult.code}
+                    </Typography>
+                    <Tooltip title={copied ? "Copied!" : "Copy code"}>
+                      <IconButton size="small" onClick={handleCopyCode}>
+                        <ContentCopyRounded sx={{ fontSize: 18, color: copied ? "success.main" : "grey.500" }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </Box>
+              )}
               <Button
                 variant="contained"
-                onClick={handleAddVet}
-                disabled={submittingVet || !selectedClinicVet || !selectedVet}
+                onClick={handleSendInvite}
+                disabled={submittingInvite || !inviteClinic || !inviteEmail.trim()}
                 sx={actionButtonStyle}
               >
-                {submittingVet ? "Adding…" : "Add vet"}
+                {submittingInvite ? "Sending…" : "Send invitation"}
               </Button>
             </CardContent>
           </Card>
